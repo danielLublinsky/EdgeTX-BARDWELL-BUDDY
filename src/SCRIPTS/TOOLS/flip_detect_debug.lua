@@ -1,11 +1,14 @@
 -- flip_detect_debug.lua
+local SoundFactory = assert(loadScript("/SCRIPTS/TOOLS/BARDWELL-BUDDY/SoundFactory.lua"))()
+
 local prevRoll, prevPitch = 0, 0
 local accRoll, accPitch = 0, 0
 local lastResetTime = 0
 local lastMovementTime = 0
-local resetInterval = 150000
-local movementThreshold = math.rad(2)
-local required = math.rad(300)
+local resetInterval = 100000
+local movementThreshold = math.rad(5)
+local requiredRoll = math.rad(300)
+local requiredPitch = math.rad(100)
 
 local function run(event)
     local nowMs = getTime() * 1000
@@ -43,23 +46,30 @@ local function run(event)
         lcd.drawText(1, 1, ">>> Reset <<<", INVERS + BLINK)
     end
 
-    local flipDetected =
-        (math.abs(accRoll) >= required or math.abs(accPitch) >= required or math.abs(dRoll) > required * 0.6 or
-            math.abs(dPitch) > required * 0.6)
+    local flipDetected = (math.abs(accPitch) >= requiredPitch)
+    local rollDetected = (math.abs(accRoll) >= requiredRoll)
 
     lcd.clear()
-    lcd.drawText(1, 5, string.format("dP:    %.2f rad", dPitch))
-    lcd.drawText(1, 15, string.format("AccP:  %.2f rad", accPitch))
-    lcd.drawText(1, 25, string.format("dRoll: %.2f rad", dRoll))
-    lcd.drawText(1, 35, string.format("AccR:  %.2f rad", accRoll))
+    lcd.drawText(1, 5, string.format("AccP:  %.2f rad", accPitch))
+    lcd.drawText(1, 15, string.format("AccR:  %.2f rad", accRoll))
     lcd.drawText(1, 50, string.format("Timer: %d ms", nowMs - lastResetTime))
 
-    if flipDetected then
+    if flipDetected or rollDetected then
         lastResetTime = nowMs
         lastMovementTime = nowMs
         accRoll, accPitch = 0, 0
-        lcd.drawText(1, 1, ">>> 360° Flip! <<<", INVERS + BLINK)
-        playFile("Frock.wav")
+
+        local eventType
+        if rollDetected then
+            lcd.drawText(1, 1, ">>> Roll Detected <<<", INVERS + BLINK)
+            eventType = "roll"
+        else
+            lcd.drawText(1, 1, ">>> Flip Detected <<<", INVERS + BLINK)
+            eventType = "flip"
+        end
+
+        local soundFile = SoundFactory.getSoundForEvent(eventType)
+        playFile(soundFile)
     end
 
     prevRoll, prevPitch = curRoll, curPitch
